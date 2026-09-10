@@ -1,0 +1,113 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import TShirtCanvas from "@/components/TShirtCanvas";
+import ColorSwatches from "@/components/ColorSwatches";
+import SizeChips from "@/components/SizeChips";
+import PrintOptions from "@/components/PrintOptions";
+import PrintsCatalog from "@/components/PrintsCatalog";
+import PriceSummary from "@/components/PriceSummary";
+import WhatsAppButton from "@/components/WhatsAppButton";
+import { TEE_COLORS } from "@/lib/pricing";
+import { CustomizerState, PrintDesign, PrintPosition, PrintType, Size, TeeColor } from "@/lib/types";
+
+export default function Home() {
+  const [selectedColor, setSelectedColor] = useState<TeeColor>(TEE_COLORS[0]);
+  const [selectedSize, setSelectedSize] = useState<Size>("M");
+  const [printSize, setPrintSize] = useState<PrintType>("none");
+  const [printPosition, setPrintPosition] = useState<PrintPosition | null>(null);
+  const [selectedDesign, setSelectedDesign] = useState<PrintDesign | null>(null);
+  const [customTextOrLogo, setCustomTextOrLogo] = useState("");
+
+  function handlePrintTypeChange(type: PrintType) {
+    setPrintSize(type);
+    if (type === "none") {
+      setPrintPosition(null);
+      setSelectedDesign(null);
+      setCustomTextOrLogo("");
+    } else if (!printPosition) {
+      setPrintPosition("front");
+    }
+  }
+
+  const customizerState: CustomizerState = {
+    color: selectedColor,
+    size: selectedSize,
+    printType: printSize,
+    printPosition,
+    selectedDesign,
+    customText: customTextOrLogo,
+  };
+
+  return (
+    <main className="min-h-screen bg-[#090A0F] text-[#E7E5E0]">
+      <header className="border-b border-white/5 px-6 py-5 sm:px-10">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <div>
+            <p className="text-[11px] tracking-wide text-[#7A7E86]">StyleLab Studio</p>
+            <h1 className="text-lg font-semibold text-[#F2EFE9] sm:text-xl">
+              Drop-Shoulder Boxy Silhouette Tee
+            </h1>
+          </div>
+          <span className="rounded-full border border-[#00F0FF]/30 bg-[#00F0FF]/5 px-3 py-1 text-[11px] text-[#00F0FF]">
+            240 GSM · Karachi
+          </span>
+        </div>
+      </header>
+
+      <div className="mx-auto grid max-w-6xl gap-8 px-6 pb-28 pt-8 sm:px-10 lg:grid-cols-[1.1fr_1fr] lg:gap-12 lg:pb-16">
+        {/* Canvas */}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="sticky top-6 h-[420px] self-start rounded-3xl border border-white/5 bg-[#0C0E14] sm:h-[520px] lg:h-[620px]"
+        >
+          <TShirtCanvas
+            color={selectedColor}
+            printType={printSize}
+            printPosition={printPosition}
+            selectedDesign={selectedDesign}
+            customText={customTextOrLogo}
+          />
+        </motion.section>
+
+        {/* Controls */}
+        <section className="space-y-8">
+          <div>
+            <p className="text-sm text-[#7A7E86]">Premium Heavyweight Cut &amp; Sew Boxy Silhouette Blank</p>
+            <p className="mt-1 text-2xl font-semibold text-[#F2EFE9]">PKR 1,200</p>
+          </div>
+
+          <ColorSwatches selected={selectedColor} onSelect={setSelectedColor} />
+          <SizeChips selected={selectedSize} onSelect={setSelectedSize} />
+          <PrintOptions
+            printType={printSize}
+            printPosition={printPosition}
+            customText={customTextOrLogo}
+            onPrintTypeChange={handlePrintTypeChange}
+            onPositionChange={setPrintPosition}
+            onCustomTextChange={setCustomTextOrLogo}
+          />
+
+          {printSize !== "none" && (
+            <PrintsCatalog selected={selectedDesign} onSelect={setSelectedDesign} />
+          )}
+
+          <PriceSummary printType={printSize} />
+
+          {/* Desktop CTA */}
+          <div className="hidden lg:block">
+            <WhatsAppButton state={customizerState} />
+          </div>
+        </section>
+      </div>
+
+      {/* Sticky mobile CTA */}
+      <div className="fixed inset-x-0 bottom-0 border-t border-white/10 bg-[#090A0F]/95 p-4 backdrop-blur lg:hidden">
+        <WhatsAppButton state={customizerState} />
+      </div>
+    </main>
+  );
+}
