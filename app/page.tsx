@@ -10,14 +10,14 @@ import PrintsCatalog from "@/components/PrintsCatalog";
 import PriceSummary from "@/components/PriceSummary";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { TEE_COLORS } from "@/lib/pricing";
-import { CustomizerState, PrintDesign, PrintPosition, PrintType, Size, TeeColor } from "@/lib/types";
+import { CustomizerState, PrintItem, PrintPosition, PrintType, Size, TeeColor } from "@/lib/types";
 
 export default function Home() {
   const [selectedColor, setSelectedColor] = useState<TeeColor>(TEE_COLORS[0]);
   const [selectedSize, setSelectedSize] = useState<Size>("M");
   const [printSize, setPrintSize] = useState<PrintType>("none");
   const [printPosition, setPrintPosition] = useState<PrintPosition | null>(null);
-  const [selectedDesign, setSelectedDesign] = useState<PrintDesign | null>(null);
+  const [selectedDesign, setSelectedDesign] = useState<PrintItem | null>(null);
   const [customTextOrLogo, setCustomTextOrLogo] = useState("");
 
   function handlePrintTypeChange(type: PrintType) {
@@ -29,6 +29,23 @@ export default function Home() {
     } else if (!printPosition) {
       setPrintPosition("front");
     }
+  }
+
+  /**
+   * Picking a catalog design is the source of truth for print size: its
+   * `price` (300/400) maps straight onto the A4/A3 tiers already defined
+   * in lib/pricing.ts, so the charged amount can never drift from what
+   * the catalog card advertises. Manually switching Print Type after
+   * this still works — it just re-syncs which size box is drawn.
+   */
+  function handleSelectPrint(item: PrintItem) {
+    setSelectedDesign(item);
+    setPrintSize(item.price >= 400 ? "a3" : "a4");
+    if (!printPosition) setPrintPosition("front");
+  }
+
+  function handleClearPrint() {
+    setSelectedDesign(null);
   }
 
   const customizerState: CustomizerState = {
@@ -92,7 +109,11 @@ export default function Home() {
           />
 
           {printSize !== "none" && (
-            <PrintsCatalog selected={selectedDesign} onSelect={setSelectedDesign} />
+            <PrintsCatalog
+              selected={selectedDesign}
+              onSelect={handleSelectPrint}
+              onClear={handleClearPrint}
+            />
           )}
 
           <PriceSummary printType={printSize} />

@@ -1,13 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { PrintDesign, PrintPosition, PrintType, TeeColor } from "@/lib/types";
+import { PrintItem, PrintPosition, PrintType, TeeColor } from "@/lib/types";
 
 interface TShirtCanvasProps {
   color: TeeColor;
   printType: PrintType;
   printPosition: PrintPosition | null;
-  selectedDesign: PrintDesign | null;
+  selectedDesign: PrintItem | null;
   customText: string;
 }
 
@@ -105,7 +105,7 @@ export default function TShirtCanvas({
                 />
                 {selectedDesign ? (
                   <image
-                    href={selectedDesign.thumbnail}
+                    href={selectedDesign.image}
                     x={180 - printBox.w / 2 + 8}
                     y={printY + 8}
                     width={printBox.w - 16}

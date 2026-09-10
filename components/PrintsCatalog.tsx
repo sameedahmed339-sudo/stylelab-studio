@@ -1,23 +1,35 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Upload, ImageOff } from "lucide-react";
 import { printsCatalog } from "@/lib/prints-catalog";
-import { PrintDesign } from "@/lib/types";
+import { PrintCategory, PrintItem } from "@/lib/types";
 import { isSafeImageFile } from "@/lib/sanitize";
 
 interface PrintsCatalogProps {
-  selected: PrintDesign | null;
-  onSelect: (design: PrintDesign | null) => void;
+  selected: PrintItem | null;
+  onSelect: (print: PrintItem) => void;
+  onClear: () => void;
 }
 
-export default function PrintsCatalog({ selected, onSelect }: PrintsCatalogProps) {
-  const [customDesigns, setCustomDesigns] = useState<PrintDesign[]>([]);
+export default function PrintsCatalog({ selected, onSelect, onClear }: PrintsCatalogProps) {
+  const [customDesigns, setCustomDesigns] = useState<PrintItem[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("All");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const allDesigns = [...printsCatalog, ...customDesigns];
+  const allPrints = [...printsCatalog, ...customDesigns];
+
+  // Tabs derive from whatever categories actually exist in the catalog,
+  // so a newly added design/category shows up without touching this file.
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(allPrints.map((p) => p.category))) as PrintCategory[];
+    return ["All", ...unique];
+  }, [allPrints]);
+
+  const filteredPrints =
+    activeTab === "All" ? allPrints : allPrints.filter((p) => p.category === activeTab);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -32,24 +44,28 @@ export default function PrintsCatalog({ selected, onSelect }: PrintsCatalogProps
 
     // Preview-only: object URL never leaves the browser / isn't persisted.
     const objectUrl = URL.createObjectURL(file);
-    const design: PrintDesign = {
+    const design: PrintItem = {
       id: `custom-${Date.now()}`,
       name: file.name.replace(/\.[^/.]+$/, "").slice(0, 40) || "Custom Upload",
-      thumbnail: objectUrl,
+      category: "Custom",
+      price: 300,
+      image: objectUrl,
+      description: "Your own upload, previewed on the tee.",
       isCustom: true,
     };
     setCustomDesigns((prev) => [...prev, design]);
+    setActiveTab("Custom");
     onSelect(design);
   }
 
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-[#E7E5E0]">Design catalog</h3>
         {selected && (
           <button
             type="button"
-            onClick={() => onSelect(null)}
+            onClick={onClear}
             className="flex items-center gap-1 text-xs text-[#7A7E86] transition-colors hover:text-[#00F0FF]"
           >
             <ImageOff size={12} /> Clear
@@ -57,46 +73,79 @@ export default function PrintsCatalog({ selected, onSelect }: PrintsCatalogProps
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-3">
-        {allDesigns.map((design) => {
-          const active = selected?.id === design.id;
+      {/* Category tabs */}
+      <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1">
+        {categories.map((cat) => {
+          const active = activeTab === cat;
           return (
-            <motion.button
-              key={design.id}
+            <button
+              key={cat}
               type="button"
-              whileTap={{ scale: 0.94 }}
-              onClick={() => onSelect(design)}
-              className={`group relative aspect-square overflow-hidden rounded-xl border bg-[#12141C] transition-colors duration-200 ${
+              onClick={() => setActiveTab(cat)}
+              className={`whitespace-nowrap rounded-full border px-4 py-2 text-xs font-medium transition-colors duration-200 ${
                 active
-                  ? "border-[#00F0FF] shadow-[0_0_16px_rgba(0,240,255,0.3)]"
-                  : "border-white/10 hover:border-white/25"
+                  ? "border-[#00F0FF] bg-[#00F0FF]/10 text-[#00F0FF] shadow-[0_0_14px_rgba(0,240,255,0.3)]"
+                  : "border-white/10 bg-[#12141C] text-[#7A7E86] hover:border-white/25 hover:text-[#B8BBC2]"
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={design.thumbnail}
-                alt={design.name}
-                className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
-              <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1.5 text-[10px] text-[#E7E5E0]">
-                {design.name}
-              </span>
-            </motion.button>
+              {cat}
+            </button>
           );
         })}
+      </div>
 
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.94 }}
-          onClick={() => fileInputRef.current?.click()}
-          className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/20 bg-[#12141C] text-[#7A7E86] transition-colors duration-200 hover:border-[#00F0FF] hover:text-[#00F0FF]"
-        >
-          <Upload size={16} />
-          <span className="text-[10px]">Upload</span>
-        </motion.button>
+      {/* Print grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <AnimatePresence mode="popLayout">
+          {filteredPrints.map((print) => {
+            const active = selected?.id === print.id;
+            return (
+              <motion.button
+                key={print.id}
+                type="button"
+                layout
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => onSelect(print)}
+                className={`group relative rounded-xl border p-3 text-left transition-colors duration-200 ${
+                  active
+                    ? "border-[#00F0FF] bg-[#00F0FF]/5 shadow-[0_0_16px_rgba(0,240,255,0.3)]"
+                    : "border-white/10 bg-[#12141C] hover:border-white/25"
+                }`}
+              >
+                <div className="mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-[#0C0E14]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={print.image}
+                    alt={print.name}
+                    className="h-3/4 object-contain transition-transform duration-300 group-hover:scale-105"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+                <h4 className="truncate text-xs font-medium text-[#E7E5E0]">{print.name}</h4>
+                <p className="mt-0.5 truncate text-[10px] text-[#7A7E86]">{print.description}</p>
+                <span className="mt-1 block text-[10px] text-[#00F0FF]">+PKR {print.price}</span>
+              </motion.button>
+            );
+          })}
+        </AnimatePresence>
+
+        {(activeTab === "All" || activeTab === "Custom") && (
+          <motion.button
+            type="button"
+            layout
+            whileTap={{ scale: 0.96 }}
+            onClick={() => fileInputRef.current?.click()}
+            className="flex aspect-auto flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-white/20 bg-[#12141C] p-6 text-[#7A7E86] transition-colors duration-200 hover:border-[#00F0FF] hover:text-[#00F0FF]"
+          >
+            <Upload size={18} />
+            <span className="text-[11px]">Upload your own</span>
+          </motion.button>
+        )}
       </div>
 
       <input
@@ -107,7 +156,7 @@ export default function PrintsCatalog({ selected, onSelect }: PrintsCatalogProps
         onChange={handleFileChange}
       />
 
-      {uploadError && <p className="mt-2 text-xs text-[#FF6B6B]">{uploadError}</p>}
+      {uploadError && <p className="text-xs text-[#FF6B6B]">{uploadError}</p>}
     </div>
   );
 }
